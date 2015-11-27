@@ -1,0 +1,202 @@
+SET ThousandSep='.';
+SET DecimalSep=',';
+SET MoneyThousandSep='.';
+SET MoneyDecimalSep=',';
+SET MoneyFormat='R$ #.##0,00;-R$ #.##0,00';
+SET TimeFormat='hh:mm:ss';
+SET DateFormat='DD/MM/YYYY';
+SET TimestampFormat='DD/MM/YYYY hh:mm:ss[.fff]';
+SET MonthNames='jan;fev;mar;abr;mai;jun;jul;ago;set;out;nov;dez';
+SET DayNames='seg;ter;qua;qui;sex;sáb;dom';
+
+
+//BUSCA DE COORDENAS ATRAVÉS DA API DO GOOGLE.
+set ErrorMode=0;
+
+//ODBC CONNECT TO ConexaoQlikViewPostgresLocal;
+//ODBC CONNECT TO ConexaoQlikViewPostgresLocal;
+ODBC CONNECT TO santamaria;
+
+NoConcatenate
+dim_unidade_cliente:
+LOAD
+    Text( pk_unidade )			  as pk_unidade_origem,
+    Text( pk_unidade_coordenada ) as pk_unidade_coordenada_origem,
+    Text(idp) as idp,
+    Text(ids) as ids,     	
+    nome_unidade 		  as unidade_origem,
+    pk_cliente_unidade 	  as pk_cliente_origem, 
+    nome_cliente_unidade  as nome_cliente_origem,
+    pk_loca_unidade 	  as pk_loca_unidade_origem,
+    loca_nome_unidade 	  as loca_nome_unidade_origem,    
+    cida_nome_unidade 	  as cida_nome_unidade_origem,    
+    esta_nome_unidade 	  as esta_nome_unidade_origem,
+    esta_uf_unidade		  as esta_uf_unidade_origem,    
+    pk_enti_unidade 	  as pk_enti_unidade_origem,
+    pk_logr_unidade       as pk_logr_unidade_origem,
+    logr_nome_unidade     as logr_nome_unidade_origem;
+    
+SQL 
+
+//SELECT * FROM cisi."public".dim_unidade_cliente;
+
+SELECT 
+	unsa.unsa_idp || '-' || unsa.unsa_ids AS pk_unidade,
+    unsa.unsa_idp || '-' || unsa.unsa_ids AS pk_unidade_coordenada,
+    unsa.unsa_idp AS idp,
+    unsa.unsa_ids AS ids,
+    limo.limo_nome AS nome_unidade,
+    lmcl.cliente_id AS pk_cliente_unidade,
+    entic.enti_nome AS nome_cliente_unidade,
+    (loca.loca_idp || '-' ::text) || loca.loca_ids AS pk_loca_unidade,
+    loca.loca_nome AS loca_nome_unidade,
+    zolo.zolo_nome AS zolo_nome_unidade,
+    tloc.tloc_nome_tipo AS tloc_nome_tipo_unidade,
+    (cida.cida_idp || '-' ::text) || cida.cida_ids AS pk_cida_unidade,
+    cida.cida_nome AS cida_nome_unidade,
+    (esta.esta_idp || '-' ::text) || esta.esta_ids AS pk_esta_unidade,
+    esta.esta_nome AS esta_nome_unidade,
+    esta.esta_uf AS esta_uf_unidade,
+    (pais.pais_idp || '-' ::text) || pais.pais_ids AS pk_pais_unidade,
+    pais.pais_nome AS pais_nome_unidade,
+    (logr.logr_idp || '-' ::text) || logr.logr_ids AS pk_logr_unidade,
+    logr.logr_nome AS logr_nome_unidade,
+    (enti.enti_idp || '-' ::text) || enti.enti_ids AS pk_enti_unidade,
+    CASE
+    	WHEN limo.limo_ts_atu IS NULL THEN limo.limo_ts_cad
+        ELSE limo.limo_ts_atu
+    END AS unidade_cliente_atualizado
+FROM 
+	tb_unidades_saude_cnes unsa
+    	INNER JOIN 
+    def_ligacao_modular limo 
+    	ON unsa.limo_idp = limo.limo_idp AND unsa.limo_ids = limo.limo_ids
+    	INNER JOIN 
+    def_entidades enti 
+    	ON unsa.enti_idp = enti.enti_idp AND unsa.enti_ids = enti.enti_ids
+    	INNER JOIN 
+    tb_limo_clie lmcl 
+    	ON unsa.limo_idp = lmcl.limo_idp AND unsa.limo_ids = lmcl.limo_ids
+    	INNER JOIN 
+    def_cliente clie 
+    	ON lmcl.cliente_id = clie.cliente_id
+    	INNER JOIN 
+    def_entidades_juridicas entj 
+    	ON clie.entj_idp = entj.entj_idp AND clie.entj_ids = entj.entj_ids
+    	INNER JOIN 
+    def_entidades entic 
+    	ON entj.enti_idp = entic.enti_idp AND entj.enti_ids = entic.enti_ids
+    	LEFT JOIN 
+    def_localidades loca ON enti.loca_idp = loca.loca_idp AND enti.loca_ids = loca.loca_ids
+    	LEFT JOIN 
+    def_zona_localidade zolo ON loca.zolo_id = zolo.zolo_id
+    	LEFT JOIN 
+    def_tipos_localidade tloc ON loca.tloc_id = tloc.tloc_id
+    	LEFT JOIN 
+    def_cidades cida ON loca.cida_idp = cida.cida_idp AND loca.cida_ids = cida.cida_ids
+    	LEFT JOIN 
+    def_estados esta ON cida.esta_idp = esta.esta_idp AND cida.esta_ids = esta.esta_ids
+    	LEFT JOIN 
+    def_pais pais ON esta.pais_idp = pais.pais_idp AND esta.pais_idp = pais.pais_idp
+    	LEFT JOIN 
+    def_logradouros logr 
+    	ON logr.logr_idp = enti.logr_idp AND logr.logr_ids = enti.logr_ids
+WHERE 
+	enti.enti_nome IS NOT NULL;
+ 
+//STORE dim_unidade_cliente into [C:\BI_Consulfarma\Matriz_Carga_Enderecos\Endereco_Cliente\dim_unidade_cliente.qvd];
+
+set ErrorMode=0;
+ 
+ 
+[Tabela_cidades]:
+LOAD distinct
+Text(pk_unidade_origem) as pk_unidade_origem,
+Text( pk_unidade_coordenada_origem) as pk_unsa_coord,
+Text(idp)							 as pk_idp,
+Text(ids)							 as pk_ids,
+rowno() 				 	 as index,
+cida_nome_unidade_origem 	 as cidade,
+esta_uf_unidade_origem   	 as uf,
+logr_nome_unidade_origem 	 as logradouro
+Resident dim_unidade_cliente;
+
+[Maior Linha]:
+load max(index) as maxLinhas
+Resident [Tabela_cidades];
+
+let vMaxLinhas = Peek('maxLinhas');
+
+
+for  i = 1  to   $(vMaxLinhas)
+
+
+
+	[t]:
+    load
+    Text(pk_unidade_origem) as unidade_origem_pk,
+    Text(pk_unsa_coord)     as pk_unsa_coorden,
+    pk_idp					as idp_pk,
+    pk_ids					as ids_pk,      
+    cidade 			  		as nome_cidade,
+    uf     			  		as nome_estado,
+    logradouro		  		as nome_logradouro      
+    resident [Tabela_cidades] where  index = $(i);
+   	//resident [Tabela_cidades] where  index = 3;
+    
+//    let vLogradouro = Peek('nome_logradouro');
+//    let vCidade = Peek('nome_cidade');
+//    let vEstado = Peek('nome_estado');
+//    let vRegistro = vLogradouro & '+-+' & vCidade & '+-+' & vEstado;
+//    let vPK_unidade = Peek('unidade_origem_pk');
+    
+            
+//    let vLogradouro = Peek('nome_logradouro', 0);
+//    let vCidade = Peek('nome_cidade', 0);
+//    let vEstado = Peek('nome_estado', 0);    
+//    let vRegistro = vLogradouro & '+-+' & vCidade & '+-+' & vEstado;    
+//    let vPK_unidade = Text(Peek('pk_unsa_coorden', 0));    
+//    	 
+//    let vPK_idp = Text(Peek('idp_pk', 0)); 
+//    let vPK_ids = Text(Peek('ids_pk', 0));     
+//    
+//    set vPK_chave = $(vPK_idp) & '-' & $(vPK_ids);
+    
+    
+    let vLogradouro = Peek('nome_logradouro', 0);
+    let vCidade = Peek('nome_cidade', 0);
+    let vEstado = Peek('nome_estado', 0);    
+    let vRegistro = vLogradouro & '+-+' & vCidade & '+-+' & vEstado;    
+    
+    LET vPK_unidade = Text( Peek('pk_unsa_coorden', 0) );    
+    	 
+    LET vPK_idp = Text( Peek('idp_pk', 0)); 
+    LET vPK_ids = Text( Peek('ids_pk', 0));     
+    
+    LET vPK_chave = $(vPK_idp) & '-' & $(vPK_ids);
+    
+        
+    GeocodeResponse:    
+	LOAD 
+	$(i) 						   		   as index_geo,
+	Text( $(vPK_unidade) ) 		   		   as pk_unidade_coordenada_origem,		
+	Text( $(vPK_unidade) )		   		   as pk_unidade_coordenada_origem_teste,		
+    Text($(vPK_chave))					   as chave, 
+    '$(vPK_unidade)'					   as chave_nova,	
+    [result/geometry/location/lat] 		   as Latitude,
+    [result/geometry/location/lng] 		   as Longitude,
+    %Key_GeocodeResponse_62C7A0A69859D655,
+    [result/geometry/location_type] 	   as location_type,
+    status
+FROM [http://maps.googleapis.com/maps/api/geocode/xml?address=$(vRegistro)&sensor=false] (XmlSimple, Table is [GeocodeResponse]);
+
+//Resident t;
+
+
+drop Table [t];
+SLEEP(700);
+//SLEEP(100000);
+next;
+//
+////STORE GeocodeResponse into [C:\BI_Consulfarma\Matriz_Carga_Enderecos\Endereco_Cliente\Endereco_Unidade_Cliente.qvd];
+STORE GeocodeResponse into [C:\BI_Clientes\QVDs_local\santa_maria\Endereco_Unidade_Cliente.qvd];
